@@ -1,0 +1,954 @@
+------------------------------------------------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  C:\Users\ls2252\OneDrive - Cornell University\Sergio Run\fingerprintingrun.log
+  log type:  text
+ opened on:  19 Nov 2025, 06:57:56
+
+. 
+. //////////////////////////////  Program start //////////////////////////////
+> 
+. *** Setup: 
+. clear all
+
+. drop _all
+
+. program drop _all
+
+. set more off
+
+. set trace off
+
+. set mem 500m
+set memory ignored.
+    Memory no longer needs to be set in modern Statas; memory adjustments are performed on the fly automatically.
+
+. ssc install outreg2, replace
+checking outreg2 consistency and verifying not already installed...
+all files already exist and are up to date.
+
+. 
+. *** Data and variables creation: 
+. import excel "C:\Users\ls2252\OneDrive - Cornell University\Sergio Run\fingerprint_updated_data FINAL.xlsx", sheet("Sh
+> eet1") firstrow
+(68 vars, 1,148 obs)
+
+. 
+. 
+. encode region, g(rgn)
+
+. encode district, g(dstrct)
+
+. 
+. rename farm_code farm_id
+
+. 
+. sum index_final_value, d
+
+                      index_final_value
+-------------------------------------------------------------
+      Percentiles      Smallest
+ 1%            0              0
+ 5%            2              0
+10%            4              0       Obs               1,146
+25%            6              0       Sum of wgt.       1,146
+
+50%            7                      Mean           6.050916
+                        Largest       Std. dev.      1.690648
+75%            7              7
+90%            7              7       Variance        2.85829
+95%            7              7       Skewness       -2.42119
+99%            7              7       Kurtosis       8.558095
+
+. scalar indexmean = round(r(mean), 0.01) //Knowledge mean value
+
+. dis indexmean
+6.05
+
+. 
+. scalar indexmedian = round(r(p50), 0.01) //Knowledge median value
+
+. dis indexmedian
+7
+
+. 
+. gen median_index = 0
+
+. replace median_index = 1 if index_final_value >= indexmedian
+(662 real changes made)
+
+. tab median_index
+
+median_inde |
+          x |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |        486       42.33       42.33
+          1 |        662       57.67      100.00
+------------+-----------------------------------
+      Total |      1,148      100.00
+
+. 
+. gen goodsource = 0
+
+. replace goodsource = 1 if  source=="Reliable"
+(344 real changes made)
+
+. 
+. replace area = "" if area == "NA"
+(37 real changes made)
+
+. destring area, gen(plot_size)
+area: all characters numeric; plot_size generated as double
+(39 missing values generated)
+
+. 
+. recode gender (2=0)
+(156 changes made to gender)
+
+. 
+. gen firsttime=1 if first_time_seed=="Yes"
+(833 missing values generated)
+
+. replace firsttime=0 if first_time_seed=="No"
+(768 real changes made)
+
+. 
+. tab farmer_clean_name
+
+farmer_clea |
+     n_name |      Freq.     Percent        Cum.
+------------+-----------------------------------
+     brunca |         25        2.18        2.18
+    cabecar |        271       23.61       25.78
+  changuena |         18        1.57       27.35
+     diquis |          2        0.17       27.53
+   dontknow |        128       11.15       38.68
+     ensayo |         54        4.70       43.38
+ generalito |          8        0.70       44.08
+     guaymi |        105        9.15       53.22
+  landraces |         67        5.84       59.06
+mantequilla |         22        1.92       60.98
+    matambu |         37        3.22       64.20
+      nambi |        299       26.05       90.24
+      other |         43        3.75       93.99
+       suru |          2        0.17       94.16
+  talamanca |         14        1.22       95.38
+      tayni |         21        1.83       97.21
+    tequila |         15        1.31       98.52
+   victoria |         17        1.48      100.00
+------------+-----------------------------------
+      Total |      1,148      100.00
+
+. 
+. gen landraces=0
+
+. replace landraces=1 if farmer_clean_name=="landraces"
+(67 real changes made)
+
+. replace landraces=1 if dna_identified_first=="sacapobres"
+(8 real changes made)
+
+. replace landraces=1 if dna_identified_first=="generalito"
+(49 real changes made)
+
+. replace landraces=1 if dna_identified_first=="mantequilla"
+(26 real changes made)
+
+. 
+. gen  trialseed=0
+
+. replace trialseed=1 if farmer_clean_name=="ensayo"
+(54 real changes made)
+
+. replace trialseed=1 if dna_identified_first=="RCB 593"
+(7 real changes made)
+
+. replace trialseed=1 if dna_identified_first=="SEF 60"
+(0 real changes made)
+
+. replace trialseed=1 if dna_identified_first=="SEF 64"
+(4 real changes made)
+
+. replace trialseed=1 if dna_identified_first=="SEF 62"
+(9 real changes made)
+
+. replace trialseed=1 if dna_identified_first=="SEF 42"
+(0 real changes made)
+
+. replace trialseed=1 if dna_identified_first=="uran"
+(17 real changes made)
+
+. 
+. gen  other=0
+
+. replace other=1 if farmer_clean_name=="other"
+(43 real changes made)
+
+. 
+. gen  dontknow=0
+
+. replace dontknow=1 if farmer_clean_name=="dontknow"
+(128 real changes made)
+
+. 
+. gen first_below90=0
+
+. replace first_below90=1 if first_gen_distance<0.1
+(959 real changes made)
+
+. 
+. gen first_below95=0
+
+. replace first_below95=1 if first_gen_distance<0.05
+(455 real changes made)
+
+. 
+. *** Variables:
+. global indexval median_index // High knowledge dummy
+
+. global covars tricot inder goodsource education gender 
+
+. global checks other dontknow landraces trialseed firsttime
+
+. 
+. ****************************** Regs ******************************
+. *******************************************************************
+. 
+. global mtch match
+
+. 
+. *** Table 1: Treatment Effects across specifications
+. 
+. preserve
+
+. replace match=0 if first_gen_distance>=0.1 // 90% similarity restriction
+(42 real changes made)
+
+. 
+. areg $mtch 1.treated#i.${indexval}, a(rgn) cluster(farm_id)
+
+Linear regression, absorbing indicators             Number of obs     =  1,146
+Absorbed variable: rgn                              No. of categories =      2
+                                                    F(2, 667)         =   2.65
+                                                    Prob > F          = 0.0712
+                                                    R-squared         = 0.0517
+                                                    Adj R-squared     = 0.0492
+                                                    Root MSE          = 0.4803
+
+                                      (Std. err. adjusted for 668 clusters in farm_id)
+--------------------------------------------------------------------------------------
+                     |               Robust
+               match | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+---------------------+----------------------------------------------------------------
+treated#median_index |
+                1 0  |   .0046019   .0418698     0.11   0.913    -.0776107    .0868144
+                1 1  |   .0802377   .0353627     2.27   0.024     .0108021    .1496733
+                     |
+               _cons |   .3932134    .017207    22.85   0.000      .359427    .4269998
+--------------------------------------------------------------------------------------
+
+. sum match if e(sample) & treated==0 // mean outcome for control
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+       match |        721    .4119279    .4925239          0          1
+
+. outreg2 using regs.xls, replace dec(2)
+regs.xls
+dir : seeout
+
+. 
+. areg $mtch 1.treated#i.${indexval} $checks, a(rgn) cluster(farm_id)
+
+Linear regression, absorbing indicators             Number of obs     =  1,083
+Absorbed variable: rgn                              No. of categories =      2
+                                                    F(7, 630)         =  72.27
+                                                    Prob > F          = 0.0000
+                                                    R-squared         = 0.2260
+                                                    Adj R-squared     = 0.2203
+                                                    Root MSE          = 0.4352
+
+                                      (Std. err. adjusted for 631 clusters in farm_id)
+--------------------------------------------------------------------------------------
+                     |               Robust
+               match | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+---------------------+----------------------------------------------------------------
+treated#median_index |
+                1 0  |   .0360917   .0393315     0.92   0.359     -.041145    .1133285
+                1 1  |   .0686534   .0340652     2.02   0.044     .0017584    .1355484
+                     |
+               other |   -.421154   .0262098   -16.07   0.000    -.4726232   -.3696849
+            dontknow |  -.4499922   .0255447   -17.62   0.000    -.5001552   -.3998292
+           landraces |   -.209336   .0377375    -5.55   0.000    -.2834425   -.1352295
+           trialseed |  -.4791834   .0254963   -18.79   0.000    -.5292515   -.4291154
+           firsttime |   -.013105   .0276503    -0.47   0.636    -.0674028    .0411929
+               _cons |   .5237571   .0221972    23.60   0.000     .4801677    .5673466
+--------------------------------------------------------------------------------------
+
+. outreg2 using regs.xls, append dec(2) drop($checks)
+regs.xls
+dir : seeout
+
+. sum match if e(sample) & treated==0
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+       match |        692    .4132948     .492781          0          1
+
+. 
+. areg $mtch 1.treated#i.${indexval} $checks $covars, a(rgn) cluster(farm_id)
+
+Linear regression, absorbing indicators             Number of obs     =  1,083
+Absorbed variable: rgn                              No. of categories =      2
+                                                    F(12, 630)        =  43.50
+                                                    Prob > F          = 0.0000
+                                                    R-squared         = 0.2318
+                                                    Adj R-squared     = 0.2224
+                                                    Root MSE          = 0.4346
+
+                                      (Std. err. adjusted for 631 clusters in farm_id)
+--------------------------------------------------------------------------------------
+                     |               Robust
+               match | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+---------------------+----------------------------------------------------------------
+treated#median_index |
+                1 0  |   .0400398   .0397911     1.01   0.315    -.0380994     .118179
+                1 1  |   .0703321   .0351357     2.00   0.046     .0013349    .1393293
+                     |
+               other |  -.4032691   .0271485   -14.85   0.000    -.4565815   -.3499567
+            dontknow |  -.4452877   .0262994   -16.93   0.000    -.4969329   -.3936425
+           landraces |  -.2008364   .0387681    -5.18   0.000    -.2769668   -.1247061
+           trialseed |  -.4717739   .0265409   -17.78   0.000    -.5238933   -.4196546
+           firsttime |  -.0224624   .0278189    -0.81   0.420    -.0770913    .0321666
+              tricot |   .0000557   .0273338     0.00   0.998    -.0536207     .053732
+               inder |   .0695938   .0373657     1.86   0.063    -.0037827    .1429702
+          goodsource |    .032874   .0306798     1.07   0.284     -.027373    .0931209
+           education |   .0067638   .0041614     1.63   0.105    -.0014082    .0149357
+              gender |   .0243862   .0402644     0.61   0.545    -.0546824    .1034548
+               _cons |   .4396242   .0527361     8.34   0.000     .3360644     .543184
+--------------------------------------------------------------------------------------
+
+. outreg2 using regs.xls, append dec(2) drop($checks $covars)
+regs.xls
+dir : seeout
+
+. sum match if e(sample) & treated==0 
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+       match |        692    .4132948     .492781          0          1
+
+. 
+. restore
+
+. 
+. 
+. 
+. *** Table 2A: Match Rates and Precision 90%
+. 
+. gen match1=match
+
+. gen refSD= sd_ref_distance_1*100
+
+. gen standsefSD = (sd_ref_distance_1-.0020415)/.0039034 
+
+. gen mean_ref_distance = max_ref_distance_1-sd_ref_distance_1 
+
+. gen meanSD = mean_ref_distance/sd_ref_distance_1
+
+. 
+. global unp invFCI_SP standsefSD 
+
+. 
+. reg $mtch invFCI_SP, cluster(farm_id)
+
+Linear regression                               Number of obs     =      1,148
+                                                F(1, 669)         =      34.32
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.0281
+                                                Root MSE          =     .49074
+
+                              (Std. err. adjusted for 670 clusters in farm_id)
+------------------------------------------------------------------------------
+             |               Robust
+       match | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+   invFCI_SP |   .1770986   .0302296     5.86   0.000     .1177422     .236455
+       _cons |   .3898305    .017317    22.51   0.000     .3558283    .4238327
+------------------------------------------------------------------------------
+
+. sum $mtch if invFCI_SP==0 & e(sample)
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+       match |        767    .3898305    .4880299          0          1
+
+. sum $mtch if invFCI_SP==1 & e(sample)
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+       match |        381    .5669291    .4961518          0          1
+
+. 
+. preserve
+
+. replace match=0 if first_gen_distance>=0.10
+(42 real changes made)
+
+. areg match 1.treated#i.${indexval} $unp $checks, a(rgn) cluster(farm_id)
+
+Linear regression, absorbing indicators             Number of obs     =  1,083
+Absorbed variable: rgn                              No. of categories =      2
+                                                    F(9, 630)         =  66.29
+                                                    Prob > F          = 0.0000
+                                                    R-squared         = 0.2724
+                                                    Adj R-squared     = 0.2657
+                                                    Root MSE          = 0.4224
+
+                                      (Std. err. adjusted for 631 clusters in farm_id)
+--------------------------------------------------------------------------------------
+                     |               Robust
+               match | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+---------------------+----------------------------------------------------------------
+treated#median_index |
+                1 0  |   .0560644   .0378525     1.48   0.139    -.0182678    .1303967
+                1 1  |   .0704885   .0329179     2.14   0.033     .0058464    .1351307
+                     |
+           invFCI_SP |   .2048024   .0270836     7.56   0.000     .1516173    .2579875
+          standsefSD |  -.0483864   .0093049    -5.20   0.000    -.0666588    -.030114
+               other |  -.3549987   .0297109   -11.95   0.000     -.413343   -.2966543
+            dontknow |  -.4265735   .0284464   -15.00   0.000    -.4824347   -.3707123
+           landraces |  -.1955632   .0373353    -5.24   0.000    -.2688799   -.1222465
+           trialseed |  -.4660629   .0281522   -16.56   0.000    -.5213465   -.4107794
+           firsttime |  -.0090218   .0270715    -0.33   0.739    -.0621832    .0441395
+               _cons |   .4448849   .0241234    18.44   0.000      .397513    .4922569
+--------------------------------------------------------------------------------------
+
+. outreg2 using regs.xls, replace dec(2) drop($checks)
+regs.xls
+dir : seeout
+
+. sum match first_similarity if e(sample) & treated==0 
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+       match |        692    .4132948     .492781          0          1
+first_simi~y |        692    94.18442    5.042243   34.64696        100
+
+. 
+. areg match1 1.treated#i.${indexval} $unp $checks, a(rgn) cluster(farm_id)
+
+Linear regression, absorbing indicators             Number of obs     =  1,083
+Absorbed variable: rgn                              No. of categories =      2
+                                                    F(9, 630)         =  69.70
+                                                    Prob > F          = 0.0000
+                                                    R-squared         = 0.2942
+                                                    Adj R-squared     = 0.2877
+                                                    Root MSE          = 0.4203
+
+                                      (Std. err. adjusted for 631 clusters in farm_id)
+--------------------------------------------------------------------------------------
+                     |               Robust
+              match1 | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+---------------------+----------------------------------------------------------------
+treated#median_index |
+                1 0  |   .0658171    .039824     1.65   0.099    -.0123867    .1440209
+                1 1  |   .0816888   .0322688     2.53   0.012     .0183213    .1450563
+                     |
+           invFCI_SP |   .1433438    .026409     5.43   0.000     .0914834    .1952042
+          standsefSD |  -.0486914   .0092828    -5.25   0.000    -.0669203   -.0304624
+               other |  -.4080682   .0308126   -13.24   0.000    -.4685759   -.3475604
+            dontknow |  -.4713366   .0288145   -16.36   0.000    -.5279207   -.4147525
+           landraces |  -.2225664   .0378743    -5.88   0.000    -.2969416   -.1481912
+           trialseed |  -.5010176   .0284634   -17.60   0.000    -.5569122    -.445123
+           firsttime |  -.0263537   .0268573    -0.98   0.327    -.0790944    .0263871
+               _cons |   .5169491   .0234873    22.01   0.000     .4708261     .563072
+--------------------------------------------------------------------------------------
+
+. outreg2 using regs.xls, append dec(2) drop($checks)
+regs.xls
+dir : seeout
+
+. sum match1 first_similarity if e(sample) & treated==0 
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+      match1 |        692     .449422    .4977951          0          1
+first_simi~y |        692    94.18442    5.042243   34.64696        100
+
+. 
+. replace match2=0 if second_gen_distance>=0.10
+(387 real changes made)
+
+. areg match2 1.treated#i.${indexval} $unp $checks, a(rgn) cluster(farm_id)
+
+Linear regression, absorbing indicators             Number of obs     =  1,083
+Absorbed variable: rgn                              No. of categories =      2
+                                                    F(9, 630)         =  21.27
+                                                    Prob > F          = 0.0000
+                                                    R-squared         = 0.0804
+                                                    Adj R-squared     = 0.0718
+                                                    Root MSE          = 0.3747
+
+                                      (Std. err. adjusted for 631 clusters in farm_id)
+--------------------------------------------------------------------------------------
+                     |               Robust
+              match2 | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+---------------------+----------------------------------------------------------------
+treated#median_index |
+                1 0  |   .0163882   .0337247     0.49   0.627    -.0498382    .0826146
+                1 1  |   .0446042   .0288209     1.55   0.122    -.0119924    .1012008
+                     |
+           invFCI_SP |   .0315451   .0251082     1.26   0.209    -.0177607     .080851
+          standsefSD |  -.0075043   .0052501    -1.43   0.153    -.0178142    .0028056
+               other |  -.1954588   .0214128    -9.13   0.000    -.2375078   -.1534098
+            dontknow |  -.1928527   .0170015   -11.34   0.000    -.2262392   -.1594661
+           landraces |   .0565932   .0337553     1.68   0.094    -.0096933    .1228797
+           trialseed |  -.1933419   .0173398   -11.15   0.000    -.2273927   -.1592912
+           firsttime |    .006003   .0249951     0.24   0.810    -.0430809    .0550869
+               _cons |   .1952338   .0195759     9.97   0.000      .156792    .2336757
+--------------------------------------------------------------------------------------
+
+. outreg2 using regs.xls, append dec(2) drop($checks)
+regs.xls
+dir : seeout
+
+. sum match2 second_similarity  if e(sample) & treated==0 
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+      match2 |        692    .1849711     .388555          0          1
+second_sim~y |        692    89.15723    3.795934   34.29912        100
+
+. 
+. replace match3=0 if third_gen_distance>=0.10
+(589 real changes made)
+
+. areg match3 1.treated#i.${indexval} $unp $checks, a(rgn) cluster(farm_id)
+
+Linear regression, absorbing indicators             Number of obs     =  1,083
+Absorbed variable: rgn                              No. of categories =      2
+                                                    F(9, 630)         =   4.19
+                                                    Prob > F          = 0.0000
+                                                    R-squared         = 0.0200
+                                                    Adj R-squared     = 0.0108
+                                                    Root MSE          = 0.1854
+
+                                      (Std. err. adjusted for 631 clusters in farm_id)
+--------------------------------------------------------------------------------------
+                     |               Robust
+              match3 | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+---------------------+----------------------------------------------------------------
+treated#median_index |
+                1 0  |  -.0102216   .0160051    -0.64   0.523    -.0416515    .0212082
+                1 1  |  -.0177082   .0129874    -1.36   0.173    -.0432121    .0077957
+                     |
+           invFCI_SP |   .0271414   .0129463     2.10   0.036     .0017184    .0525645
+          standsefSD |   .0036361    .002674     1.36   0.174    -.0016149    .0088871
+               other |  -.0437549   .0093321    -4.69   0.000    -.0620807    -.025429
+            dontknow |  -.0430609   .0080477    -5.35   0.000    -.0588644   -.0272574
+           landraces |   .0340769    .021009     1.62   0.105    -.0071792     .075333
+           trialseed |  -.0454802   .0087802    -5.18   0.000    -.0627221   -.0282383
+           firsttime |   .0122711   .0133546     0.92   0.359    -.0139538    .0384961
+               _cons |    .033818   .0090158     3.75   0.000     .0161134    .0515226
+--------------------------------------------------------------------------------------
+
+. outreg2 using regs.xls, append dec(2) drop($checks)
+regs.xls
+dir : seeout
+
+. sum match3 third_similarity if e(sample)  & treated==0 
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+      match3 |        692    .0404624    .1971837          0          1
+third_simi~y |        692    87.87141     3.59067   34.24092        100
+
+. 
+. replace match4=0 if fourth_gen_distance>=0.10
+(633 real changes made)
+
+. areg match4 1.treated#i.${indexval} $unp $checks, a(rgn) cluster(farm_id)
+
+Linear regression, absorbing indicators             Number of obs     =  1,083
+Absorbed variable: rgn                              No. of categories =      2
+                                                    F(9, 630)         =   2.69
+                                                    Prob > F          = 0.0045
+                                                    R-squared         = 0.0215
+                                                    Adj R-squared     = 0.0124
+                                                    Root MSE          = 0.1493
+
+                                      (Std. err. adjusted for 631 clusters in farm_id)
+--------------------------------------------------------------------------------------
+                     |               Robust
+              match4 | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+---------------------+----------------------------------------------------------------
+treated#median_index |
+                1 0  |  -.0316501   .0073688    -4.30   0.000    -.0461205   -.0171797
+                1 1  |    -.02441   .0103938    -2.35   0.019    -.0448207   -.0039993
+                     |
+           invFCI_SP |    .013067    .010485     1.25   0.213    -.0075229    .0336568
+          standsefSD |  -.0058746   .0020159    -2.91   0.004    -.0098332   -.0019159
+               other |  -.0209742   .0068898    -3.04   0.002     -.034504   -.0074443
+            dontknow |  -.0231946   .0055718    -4.16   0.000    -.0341363    -.012253
+           landraces |  -.0262032   .0056561    -4.63   0.000    -.0373103   -.0150962
+           trialseed |  -.0304269   .0069033    -4.41   0.000    -.0439832   -.0168707
+           firsttime |  -.0036471   .0095262    -0.38   0.702     -.022354    .0150598
+               _cons |   .0386293   .0097912     3.95   0.000     .0194019    .0578566
+--------------------------------------------------------------------------------------
+
+. outreg2 using regs.xls, append dec(2) drop($checks)
+regs.xls
+dir : seeout
+
+. sum match4 fourth_similarity  if e(sample)  & treated==0 
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+      match4 |        692    .0317919    .1755726          0          1
+fourth_sim~y |        692    87.20943    3.739565   34.23943        100
+
+. restore
+
+. 
+. *** Table 2B: Match Rates and Precision
+. 
+. 
+. preserve
+
+. replace match=0 if first_gen_distance>=0.10
+(42 real changes made)
+
+. areg match 1.treated#i.${indexval} $unp $checks, a(rgn) cluster(farm_id)
+
+Linear regression, absorbing indicators             Number of obs     =  1,083
+Absorbed variable: rgn                              No. of categories =      2
+                                                    F(9, 630)         =  66.29
+                                                    Prob > F          = 0.0000
+                                                    R-squared         = 0.2724
+                                                    Adj R-squared     = 0.2657
+                                                    Root MSE          = 0.4224
+
+                                      (Std. err. adjusted for 631 clusters in farm_id)
+--------------------------------------------------------------------------------------
+                     |               Robust
+               match | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+---------------------+----------------------------------------------------------------
+treated#median_index |
+                1 0  |   .0560644   .0378525     1.48   0.139    -.0182678    .1303967
+                1 1  |   .0704885   .0329179     2.14   0.033     .0058464    .1351307
+                     |
+           invFCI_SP |   .2048024   .0270836     7.56   0.000     .1516173    .2579875
+          standsefSD |  -.0483864   .0093049    -5.20   0.000    -.0666588    -.030114
+               other |  -.3549987   .0297109   -11.95   0.000     -.413343   -.2966543
+            dontknow |  -.4265735   .0284464   -15.00   0.000    -.4824347   -.3707123
+           landraces |  -.1955632   .0373353    -5.24   0.000    -.2688799   -.1222465
+           trialseed |  -.4660629   .0281522   -16.56   0.000    -.5213465   -.4107794
+           firsttime |  -.0090218   .0270715    -0.33   0.739    -.0621832    .0441395
+               _cons |   .4448849   .0241234    18.44   0.000      .397513    .4922569
+--------------------------------------------------------------------------------------
+
+. outreg2 using regs.xls, replace dec(2) drop($checks)
+regs.xls
+dir : seeout
+
+. sum match first_similarity if e(sample) & treated==0 
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+       match |        692    .4132948     .492781          0          1
+first_simi~y |        692    94.18442    5.042243   34.64696        100
+
+. 
+. areg match1 1.treated#i.${indexval} $unp $checks, a(rgn) cluster(farm_id)
+
+Linear regression, absorbing indicators             Number of obs     =  1,083
+Absorbed variable: rgn                              No. of categories =      2
+                                                    F(9, 630)         =  69.70
+                                                    Prob > F          = 0.0000
+                                                    R-squared         = 0.2942
+                                                    Adj R-squared     = 0.2877
+                                                    Root MSE          = 0.4203
+
+                                      (Std. err. adjusted for 631 clusters in farm_id)
+--------------------------------------------------------------------------------------
+                     |               Robust
+              match1 | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+---------------------+----------------------------------------------------------------
+treated#median_index |
+                1 0  |   .0658171    .039824     1.65   0.099    -.0123867    .1440209
+                1 1  |   .0816888   .0322688     2.53   0.012     .0183213    .1450563
+                     |
+           invFCI_SP |   .1433438    .026409     5.43   0.000     .0914834    .1952042
+          standsefSD |  -.0486914   .0092828    -5.25   0.000    -.0669203   -.0304624
+               other |  -.4080682   .0308126   -13.24   0.000    -.4685759   -.3475604
+            dontknow |  -.4713366   .0288145   -16.36   0.000    -.5279207   -.4147525
+           landraces |  -.2225664   .0378743    -5.88   0.000    -.2969416   -.1481912
+           trialseed |  -.5010176   .0284634   -17.60   0.000    -.5569122    -.445123
+           firsttime |  -.0263537   .0268573    -0.98   0.327    -.0790944    .0263871
+               _cons |   .5169491   .0234873    22.01   0.000     .4708261     .563072
+--------------------------------------------------------------------------------------
+
+. outreg2 using regs.xls, append dec(2) drop($checks)
+regs.xls
+dir : seeout
+
+. sum match1 first_similarity if e(sample) & treated==0 
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+      match1 |        692     .449422    .4977951          0          1
+first_simi~y |        692    94.18442    5.042243   34.64696        100
+
+. 
+. 
+. areg match2 1.treated#i.${indexval} $unp $checks, a(rgn) cluster(farm_id)
+
+Linear regression, absorbing indicators             Number of obs     =  1,083
+Absorbed variable: rgn                              No. of categories =      2
+                                                    F(9, 630)         =  76.89
+                                                    Prob > F          = 0.0000
+                                                    R-squared         = 0.3813
+                                                    Adj R-squared     = 0.3755
+                                                    Root MSE          = 0.3948
+
+                                      (Std. err. adjusted for 631 clusters in farm_id)
+--------------------------------------------------------------------------------------
+                     |               Robust
+              match2 | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+---------------------+----------------------------------------------------------------
+treated#median_index |
+                1 0  |   .0593087   .0388659     1.53   0.128    -.0170137    .1356311
+                1 1  |   .0775448   .0310465     2.50   0.013     .0165777     .138512
+                     |
+           invFCI_SP |   .0479236   .0250004     1.92   0.056    -.0011706    .0970178
+          standsefSD |  -.0564721   .0108898    -5.19   0.000    -.0778568   -.0350874
+               other |  -.4971359    .033398   -14.89   0.000    -.5627207    -.431551
+            dontknow |  -.5538906   .0307866   -17.99   0.000    -.6143475   -.4934338
+           landraces |  -.3133444   .0378594    -8.28   0.000    -.3876903   -.2389985
+           trialseed |  -.5608828   .0328394   -17.08   0.000    -.6253708   -.4963948
+           firsttime |  -.0199446   .0255661    -0.78   0.436    -.0701496    .0302605
+               _cons |   .6496533   .0221389    29.34   0.000     .6061783    .6931283
+--------------------------------------------------------------------------------------
+
+. outreg2 using regs.xls, append dec(2) drop($checks)
+regs.xls
+dir : seeout
+
+. sum match2 second_similarity  if e(sample) & treated==0 
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+      match2 |        692    .5289017     .499525          0          1
+second_sim~y |        692    89.15723    3.795934   34.29912        100
+
+. 
+. 
+. areg match3 1.treated#i.${indexval} $unp $checks, a(rgn) cluster(farm_id)
+
+Linear regression, absorbing indicators             Number of obs     =  1,083
+Absorbed variable: rgn                              No. of categories =      2
+                                                    F(9, 630)         =  88.23
+                                                    Prob > F          = 0.0000
+                                                    R-squared         = 0.4100
+                                                    Adj R-squared     = 0.4045
+                                                    Root MSE          = 0.3838
+
+                                      (Std. err. adjusted for 631 clusters in farm_id)
+--------------------------------------------------------------------------------------
+                     |               Robust
+              match3 | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+---------------------+----------------------------------------------------------------
+treated#median_index |
+                1 0  |   .0764539   .0387955     1.97   0.049     .0002698    .1526381
+                1 1  |   .0613726   .0297547     2.06   0.040     .0029422     .119803
+                     |
+           invFCI_SP |   .0192661   .0241666     0.80   0.426    -.0281908    .0667231
+          standsefSD |  -.0514242   .0114941    -4.47   0.000    -.0739955   -.0288528
+               other |  -.5416217   .0338478   -16.00   0.000    -.6080898   -.4751536
+            dontknow |  -.6004306   .0307519   -19.53   0.000    -.6608193    -.540042
+           landraces |  -.3496359   .0379369    -9.22   0.000    -.4241341   -.2751378
+           trialseed |  -.5982047   .0334542   -17.88   0.000    -.6639001   -.5325094
+           firsttime |  -.0123529   .0252532    -0.49   0.625    -.0619435    .0372377
+               _cons |   .7009587   .0208758    33.58   0.000     .6599642    .7419532
+--------------------------------------------------------------------------------------
+
+. outreg2 using regs.xls, append dec(2) drop($checks)
+regs.xls
+dir : seeout
+
+. sum match3 third_similarity if e(sample)  & treated==0 
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+      match3 |        692    .5563584    .4971729          0          1
+third_simi~y |        692    87.87141     3.59067   34.24092        100
+
+. 
+. areg match4 1.treated#i.${indexval} $unp $checks, a(rgn) cluster(farm_id)
+
+Linear regression, absorbing indicators             Number of obs     =  1,083
+Absorbed variable: rgn                              No. of categories =      2
+                                                    F(9, 630)         = 100.63
+                                                    Prob > F          = 0.0000
+                                                    R-squared         = 0.4230
+                                                    Adj R-squared     = 0.4176
+                                                    Root MSE          = 0.3771
+
+                                      (Std. err. adjusted for 631 clusters in farm_id)
+--------------------------------------------------------------------------------------
+                     |               Robust
+              match4 | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+---------------------+----------------------------------------------------------------
+treated#median_index |
+                1 0  |   .0479667    .037563     1.28   0.202    -.0257971    .1217306
+                1 1  |   .0414367   .0298718     1.39   0.166    -.0172237    .1000971
+                     |
+           invFCI_SP |  -.0080124   .0232415    -0.34   0.730    -.0536525    .0376277
+          standsefSD |  -.0491081   .0119558    -4.11   0.000    -.0725862   -.0256299
+               other |  -.5849601   .0338922   -17.26   0.000    -.6515155   -.5184048
+            dontknow |   -.638034   .0299101   -21.33   0.000    -.6967696   -.5792984
+           landraces |  -.3717063   .0384544    -9.67   0.000    -.4472205   -.2961921
+           trialseed |  -.6047488   .0374865   -16.13   0.000    -.6783625   -.5311351
+           firsttime |   .0153242   .0252816     0.61   0.545    -.0343221    .0649706
+               _cons |   .7429765   .0207249    35.85   0.000     .7022783    .7836747
+--------------------------------------------------------------------------------------
+
+. outreg2 using regs.xls, append dec(2) drop($checks)
+regs.xls
+dir : seeout
+
+. sum match4 fourth_similarity  if e(sample)  & treated==0 
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+      match4 |        692    .5852601    .4930335          0          1
+fourth_sim~y |        692    87.20943    3.739565   34.23943        100
+
+. restore
+
+. 
+. 
+. *** Table 3: Determinants of knowledge
+. 
+. * Weights: in case we worry that farms with more plots may impact results.
+. *                  Adding these weights helps to mantain representatives.
+. 
+. bysort farm_id: gen n_plots = _N
+
+. gen ws = 1 / n_plots
+
+. destring count_neigh_1km, generate(count_neigh_1km_num) ignore("NA . ,")
+count_neigh_1km: characters N A removed; count_neigh_1km_num generated as byte
+(40 missing values generated)
+
+. destring count_match_5km, generate(count_match_5km_num) ignore("NA . ,")
+count_match_5km: characters N A removed; count_match_5km_num generated as byte
+(40 missing values generated)
+
+. destring Ext, generate(Ext_num) ignore("NA . ,")
+Ext: characters N A removed; Ext_num generated as byte
+(38 missing values generated)
+
+. 
+. 
+. * Knowledge Index as is
+. areg index_final_value treated $covars [pweight=ws], a(rgn) cluster(farm_id) //knowledge index as is
+(sum of wgt is 654)
+
+Linear regression, absorbing indicators             Number of obs     =  1,121
+Absorbed variable: rgn                              No. of categories =      2
+                                                    F(6, 653)         =   1.05
+                                                    Prob > F          = 0.3918
+                                                    R-squared         = 0.0161
+                                                    Adj R-squared     = 0.0099
+                                                    Root MSE          = 1.7249
+
+                              (Std. err. adjusted for 654 clusters in farm_id)
+------------------------------------------------------------------------------
+             |               Robust
+index_fina~e | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+     treated |   .2848757   .1557582     1.83   0.068    -.0209717    .5907231
+      tricot |   .3265226   .1483199     2.20   0.028     .0352812     .617764
+       inder |   .2075577   .1876867     1.11   0.269    -.1609846       .5761
+  goodsource |  -.0652286   .1430125    -0.46   0.648    -.3460485    .2155913
+   education |   .0054208   .0240968     0.22   0.822    -.0418957    .0527374
+      gender |   .0995605   .1818281     0.55   0.584    -.2574778    .4565987
+       _cons |   5.663798   .2690491    21.05   0.000     5.135493    6.192104
+------------------------------------------------------------------------------
+
+. outreg2 using regs.xls, replace dec(2)
+regs.xls
+dir : seeout
+
+. areg index_final_value treated count_neigh_1km_num Ext_num $covars [pweight=ws], a(rgn) cluster(farm_id) //knowledge i
+> ndex as is
+(sum of wgt is 646.33)
+
+Linear regression, absorbing indicators             Number of obs     =  1,108
+Absorbed variable: rgn                              No. of categories =      2
+                                                    F(8, 646)         =   1.69
+                                                    Prob > F          = 0.0984
+                                                    R-squared         = 0.0217
+                                                    Adj R-squared     = 0.0137
+                                                    Root MSE          = 1.7261
+
+                                     (Std. err. adjusted for 647 clusters in farm_id)
+-------------------------------------------------------------------------------------
+                    |               Robust
+  index_final_value | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+--------------------+----------------------------------------------------------------
+            treated |   .2678035   .1557908     1.72   0.086     -.038114     .573721
+count_neigh_1km_num |    .042837   .0175815     2.44   0.015     .0083133    .0773607
+            Ext_num |   .1341926   .1997063     0.67   0.502    -.2579593    .5263444
+             tricot |   .3128163   .1503939     2.08   0.038     .0174964    .6081362
+              inder |   .1942032   .1924542     1.01   0.313    -.1837081    .5721146
+         goodsource |  -.0394507   .1429675    -0.28   0.783    -.3201878    .2412864
+          education |   .0063918   .0239722     0.27   0.790    -.0406811    .0534647
+             gender |   .0723601   .1835194     0.39   0.693    -.2880065    .4327267
+              _cons |   5.553756    .274361    20.24   0.000     5.015009    6.092503
+-------------------------------------------------------------------------------------
+
+. outreg2 using regs.xls, append dec(2)
+regs.xls
+dir : seeout
+
+. areg index_final_value treated count_match_5km_num Ext_num $covars [pweight=ws], a(rgn) cluster(farm_id) //knowledge i
+> ndex as is
+(sum of wgt is 646.33)
+
+Linear regression, absorbing indicators             Number of obs     =  1,108
+Absorbed variable: rgn                              No. of categories =      2
+                                                    F(8, 646)         =   1.74
+                                                    Prob > F          = 0.0861
+                                                    R-squared         = 0.0258
+                                                    Adj R-squared     = 0.0178
+                                                    Root MSE          = 1.7225
+
+                                     (Std. err. adjusted for 647 clusters in farm_id)
+-------------------------------------------------------------------------------------
+                    |               Robust
+  index_final_value | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+--------------------+----------------------------------------------------------------
+            treated |   .2277304   .1587838     1.43   0.152    -.0840643     .539525
+count_match_5km_num |   .0180908   .0075001     2.41   0.016     .0033632    .0328184
+            Ext_num |   .1299179   .2010772     0.65   0.518     -.264926    .5247617
+             tricot |   .3153777   .1501469     2.10   0.036     .0205428    .6102125
+              inder |   .1435873   .1948557     0.74   0.461    -.2390398    .5262144
+         goodsource |  -.0127544   .1445754    -0.09   0.930    -.2966489    .2711401
+          education |    .009615   .0241748     0.40   0.691    -.0378556    .0570856
+             gender |    .089524   .1821571     0.49   0.623    -.2681675    .4472155
+              _cons |   5.341316   .3033112    17.61   0.000     4.745721    5.936911
+-------------------------------------------------------------------------------------
+
+. outreg2 using regs.xls, append dec(2)
+regs.xls
+dir : seeout
+
+. 
+. log close
+      name:  <unnamed>
+       log:  C:\Users\ls2252\OneDrive - Cornell University\Sergio Run\fingerprintingrun.log
+  log type:  text
+ closed on:  19 Nov 2025, 06:57:59
+------------------------------------------------------------------------------------------------------------------------
