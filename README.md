@@ -8,9 +8,9 @@ DNA fingerprinting is increasingly used to measure adoption of improved crop var
 
 #### Content of the repository
 
-1.  [Replicate figures and descriptive](https://github.com/moccelli/empowerment-trait-bangladesh/tree/main/Elaborated%20WEAI%20BIHS), which contains the survey data and the code to replicate Fig 2 and Fig A2 of the manuscript
-2.  [Replicate Table 1-2-3](https://github.com/moccelli/empowerment-trait-bangladesh/tree/main/R%20scripts), which contains the fingerprinting data and the code to replicate Table 1-2-3 in the manuscript
-3.  [Estimation proximity matrix](https://github.com/moccelli/empowerment-trait-bangladesh/tree/main/R%20scripts), which contains data and code to replicate the spatial proximity matrix used as input in Table 3
+1.  [Replicate figures and descriptive](https://github.com/EQUAL-Lab/econ_fingerprinting_knowledge_uncertainty/tree/main/Replicate%20figures%20and%20descriptives), which contains the survey data and the code to replicate Fig 2 and Fig A2 of the manuscript
+2.  [Replicate Table 1-2-3](https://github.com/EQUAL-Lab/econ_fingerprinting_knowledge_uncertainty/tree/main/Replicate%20Table%201-2-3), which contains the fingerprinting data and the code to replicate Table 1-2-3 in the manuscript
+3.  [Estimation proximity matrix](https://github.com/EQUAL-Lab/econ_fingerprinting_knowledge_uncertainty/tree/main/Estimation%20proximity%20matrices%20(input%20Table%203)), which contains data and code to replicate the spatial proximity matrix used as input in Table 3
 
 #### Questions, comments?
 
